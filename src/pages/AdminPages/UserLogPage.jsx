@@ -34,6 +34,8 @@ const UserLogPage = () => {
     search: ''
   });
   const [deleteConfirm, setDeleteConfirm] = useState(null);
+  const [selectedLogs, setSelectedLogs] = useState([]);
+  const [bulkDeleteConfirm, setBulkDeleteConfirm] = useState(false);
 
   /**
    * Load user logs from localStorage
@@ -63,7 +65,7 @@ const UserLogPage = () => {
               loginTime: new Date(Date.now() - 3600000).toISOString(),
               logoutTime: null,
               ipAddress: '192.168.1.1',
-              tokenName: 'eyJhbGciOi...'
+              tokenName: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
             },
             {
               id: '2',
@@ -74,7 +76,7 @@ const UserLogPage = () => {
               loginTime: new Date(Date.now() - 7200000).toISOString(),
               logoutTime: new Date(Date.now() - 3600000).toISOString(),
               ipAddress: '192.168.1.2',
-              tokenName: 'eyJhbGciOi...'
+              tokenName: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
             },
             {
               id: '3',
@@ -85,7 +87,62 @@ const UserLogPage = () => {
               loginTime: new Date(Date.now() - 86400000).toISOString(),
               logoutTime: new Date(Date.now() - 82800000).toISOString(),
               ipAddress: '192.168.1.3',
-              tokenName: 'eyJhbGciOi...'
+              tokenName: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+            },
+            {
+              id: '4',
+              userId: 'admin-456',
+              username: 'superadmin@example.com',
+              role: 'admin',
+              action: 'login',
+              loginTime: new Date(Date.now() - 1800000).toISOString(),
+              logoutTime: new Date(Date.now() - 900000).toISOString(),
+              ipAddress: '192.168.1.4',
+              tokenName: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+            },
+            {
+              id: '5',
+              userId: 'user-101',
+              username: 'john.doe@example.com',
+              role: 'user',
+              action: 'login',
+              loginTime: new Date(Date.now() - 43200000).toISOString(),
+              logoutTime: new Date(Date.now() - 39600000).toISOString(),
+              ipAddress: '192.168.1.5',
+              tokenName: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+            },
+            {
+              id: '6',
+              userId: 'user-202',
+              username: 'jane.smith@example.com',
+              role: 'user',
+              action: 'login',
+              loginTime: new Date(Date.now() - 21600000).toISOString(),
+              logoutTime: new Date(Date.now() - 18000000).toISOString(),
+              ipAddress: '192.168.1.6',
+              tokenName: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+            },
+            {
+              id: '7',
+              userId: 'user-303',
+              username: 'bob.wilson@example.com',
+              role: 'user',
+              action: 'login',
+              loginTime: new Date(Date.now() - 10800000).toISOString(),
+              logoutTime: null,
+              ipAddress: '192.168.1.7',
+              tokenName: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
+            },
+            {
+              id: '8',
+              userId: 'admin-789',
+              username: 'manager@example.com',
+              role: 'admin',
+              action: 'login',
+              loginTime: new Date(Date.now() - 5400000).toISOString(),
+              logoutTime: new Date(Date.now() - 3600000).toISOString(),
+              ipAddress: '192.168.1.8',
+              tokenName: 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9...'
             }
           ];
           
@@ -212,6 +269,78 @@ const UserLogPage = () => {
   };
 
   /**
+   * Calculate session duration
+   * 
+   * @param {string} loginTime - Login timestamp
+   * @param {string} logoutTime - Logout timestamp
+   * @returns {string} Formatted duration
+   */
+  const calculateSessionDuration = (loginTime, logoutTime) => {
+    if (!loginTime || !logoutTime) return 'Active';
+    
+    try {
+      const login = new Date(loginTime);
+      const logout = new Date(logoutTime);
+      const duration = logout - login;
+      
+      const hours = Math.floor(duration / (1000 * 60 * 60));
+      const minutes = Math.floor((duration % (1000 * 60 * 60)) / (1000 * 60));
+      
+      if (hours > 0) {
+        return `${hours}h ${minutes}m`;
+      } else {
+        return `${minutes}m`;
+      }
+    } catch (err) {
+      return 'N/A';
+    }
+  };
+
+  /**
+   * Handle log selection for bulk operations
+   * 
+   * @param {string} logId - ID of the log to toggle selection
+   */
+  const handleLogSelection = (logId) => {
+    setSelectedLogs(prev => 
+      prev.includes(logId) 
+        ? prev.filter(id => id !== logId)
+        : [...prev, logId]
+    );
+  };
+
+  /**
+   * Handle bulk delete
+   */
+  const handleBulkDelete = () => {
+    if (!bulkDeleteConfirm) {
+      setBulkDeleteConfirm(true);
+      return;
+    }
+    
+    // Remove selected logs
+    const updatedLogs = logs.filter(log => !selectedLogs.includes(log.id));
+    
+    // Update state
+    setLogs(updatedLogs);
+    setFilteredLogs(filteredLogs.filter(log => !selectedLogs.includes(log.id)));
+    
+    // Update localStorage
+    localStorage.setItem('userLogs', JSON.stringify(updatedLogs));
+    
+    // Reset selection and confirmation
+    setSelectedLogs([]);
+    setBulkDeleteConfirm(false);
+  };
+
+  /**
+   * Cancel bulk delete confirmation
+   */
+  const cancelBulkDelete = () => {
+    setBulkDeleteConfirm(false);
+  };
+
+  /**
    * Delete a log entry
    * 
    * @param {string} logId - ID of the log to delete
@@ -306,6 +435,42 @@ const UserLogPage = () => {
           </select>
         </div>
       </div>
+
+      {/* Bulk actions */}
+      {selectedLogs.length > 0 && (
+        <div className="mb-4 p-3 bg-blue-50 border border-blue-200 rounded-lg">
+          <div className="flex items-center justify-between">
+            <span className="text-sm text-blue-800">
+              {selectedLogs.length} log(s) selected
+            </span>
+            <div className="flex space-x-2">
+              {bulkDeleteConfirm ? (
+                <>
+                  <button
+                    onClick={handleBulkDelete}
+                    className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+                  >
+                    Confirm Delete
+                  </button>
+                  <button
+                    onClick={cancelBulkDelete}
+                    className="px-3 py-1 bg-gray-600 text-white text-sm rounded hover:bg-gray-700 transition-colors"
+                  >
+                    Cancel
+                  </button>
+                </>
+              ) : (
+                <button
+                  onClick={handleBulkDelete}
+                  className="px-3 py-1 bg-red-600 text-white text-sm rounded hover:bg-red-700 transition-colors"
+                >
+                  Delete Selected
+                </button>
+              )}
+            </div>
+          </div>
+        </div>
+      )}
       
       {/* Results count */}
       <div className="mb-4 text-sm text-gray-500">
@@ -317,6 +482,21 @@ const UserLogPage = () => {
         <table className="min-w-full divide-y divide-gray-200">
           <thead className="bg-gray-50">
             <tr>
+              <th scope="col" className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider">
+                <input
+                  type="checkbox"
+                  className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                  checked={selectedLogs.length === filteredLogs.length && filteredLogs.length > 0}
+                  onChange={(e) => {
+                    if (e.target.checked) {
+                      setSelectedLogs(filteredLogs.map(log => log.id));
+                    } else {
+                      setSelectedLogs([]);
+                    }
+                  }}
+                  aria-label="Select all logs"
+                />
+              </th>
               <th 
                 scope="col" 
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider cursor-pointer"
@@ -361,6 +541,12 @@ const UserLogPage = () => {
                 scope="col" 
                 className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
               >
+                Session Duration
+              </th>
+              <th 
+                scope="col" 
+                className="px-6 py-3 text-left text-xs font-medium text-gray-500 uppercase tracking-wider"
+              >
                 Token
               </th>
               <th 
@@ -380,13 +566,22 @@ const UserLogPage = () => {
           <tbody className="bg-white divide-y divide-gray-200">
             {filteredLogs.length === 0 ? (
               <tr>
-                <td colSpan="7" className="px-6 py-4 text-center text-gray-500">
+                <td colSpan="9" className="px-6 py-4 text-center text-gray-500">
                   No logs match your filters
                 </td>
               </tr>
             ) : (
               filteredLogs.map((log) => (
                 <tr key={log.id} className="hover:bg-gray-50">
+                  <td className="px-6 py-4 whitespace-nowrap">
+                    <input
+                      type="checkbox"
+                      className="rounded border-gray-300 text-blue-600 focus:ring-blue-500"
+                      checked={selectedLogs.includes(log.id)}
+                      onChange={() => handleLogSelection(log.id)}
+                      aria-label={`Select log for ${log.username}`}
+                    />
+                  </td>
                   <td className="px-6 py-4 whitespace-nowrap">
                     <div className="text-sm font-medium text-gray-900">{log.username}</div>
                     <div className="text-xs text-gray-500">{log.userId}</div>
@@ -407,7 +602,16 @@ const UserLogPage = () => {
                     {formatDate(log.logoutTime)}
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
-                    <span className="font-mono">{log.tokenName}</span>
+                    <span className={`px-2 inline-flex text-xs leading-5 font-semibold rounded-full ${
+                      !log.logoutTime 
+                        ? 'bg-green-100 text-green-800' 
+                        : 'bg-gray-100 text-gray-800'
+                    }`}>
+                      {calculateSessionDuration(log.loginTime, log.logoutTime)}
+                    </span>
+                  </td>
+                  <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
+                    <span className="font-mono text-xs">{log.tokenName}</span>
                   </td>
                   <td className="px-6 py-4 whitespace-nowrap text-sm text-gray-500">
                     {log.ipAddress}

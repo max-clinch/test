@@ -112,6 +112,50 @@ const AuthProvider = ({ children }) => {
    * Clears authentication data and resets state
    */
   const handleLogout = () => {
+    // Get current user info before clearing
+    const userId = localStorage.getItem("userId");
+    const email = localStorage.getItem("email");
+    const userRole = localStorage.getItem("userRole");
+    const token = localStorage.getItem("token");
+    
+    // Create logout log entry
+    if (userId && email) {
+      const logoutLogData = {
+        id: `logout-${Date.now()}`,
+        userId: userId,
+        username: email,
+        role: userRole || 'user',
+        action: "logout",
+        loginTime: null, // Will be updated if we find a matching login entry
+        logoutTime: new Date().toISOString(),
+        ipAddress: "127.0.0.1", // In production, this would be captured from the request
+        tokenName: token ? token.substring(0, 10) + "..." : "N/A" // Truncated for security
+      };
+      
+      // Get existing logs and update the most recent login entry for this user
+      const existingLogs = JSON.parse(localStorage.getItem('userLogs') || '[]');
+      
+      // Find the most recent login entry for this user and update it with logout time
+      const userLoginEntries = existingLogs.filter(log => 
+        log.userId === userId && log.action === "login" && !log.logoutTime
+      );
+      
+      if (userLoginEntries.length > 0) {
+        // Update the most recent login entry with logout time
+        const mostRecentLogin = userLoginEntries[userLoginEntries.length - 1];
+        mostRecentLogin.logoutTime = logoutLogData.logoutTime;
+        
+        // Update the logs in localStorage
+        localStorage.setItem('userLogs', JSON.stringify(existingLogs));
+      } else {
+        // If no matching login entry found, add the logout entry
+        existingLogs.push(logoutLogData);
+        localStorage.setItem('userLogs', JSON.stringify(existingLogs));
+      }
+      
+      console.log("User logout logged:", logoutLogData);
+    }
+    
     // Clear all auth-related data from localStorage
     localStorage.removeItem("token");
     localStorage.removeItem("userRole");

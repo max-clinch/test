@@ -1,5 +1,5 @@
 import React, { useState } from "react";
-import { useNavigate } from "react-router-dom";
+import { useNavigate, Link } from "react-router-dom";
 import { motion } from "framer-motion";
 
 const Landing = () => {
@@ -17,10 +17,21 @@ const Landing = () => {
     });
   };
 
-
-  
   return (
     <div className="min-h-screen bg-gradient-to-b from-gray-200 to-white text-gray-900">
+      {/* Navigation Header */}
+      <div className="bg-white shadow-sm border-b">
+        <div className="max-w-7xl mx-auto px-6 py-4 flex justify-between items-center">
+          <h1 className="text-2xl font-bold text-gray-800">TaskFlow</h1>
+          <Link
+            to="/"
+            className="bg-blue-600 text-white px-4 py-2 rounded-md hover:bg-blue-700 transition"
+          >
+            Go to Dashboard
+          </Link>
+        </div>
+      </div>
+
       <div className="relative flex flex-col items-center justify-center text-center py-20 px-6">
         <motion.h1
           className="text-6xl font-extrabold leading-tight bg-gradient-to-r from-blue-400 to-purple-400 text-transparent bg-clip-text"
@@ -146,7 +157,7 @@ const Landing = () => {
       <div className="py-16 bg-gray-100">
         <div className="max-w-5xl mx-auto text-center px-6">
           <h2 className="text-4xl font-bold text-gray-800">📩 Contact Us</h2>
-          <p className="mt-4 text-lg text-gray-600">Have questions? We’d love to hear from you.</p>
+          <p className="mt-4 text-lg text-gray-600">Have questions? We'd love to hear from you.</p>
           <motion.form
             className="mt-8 space-y-4 max-w-3xl mx-auto"
             initial={{ opacity: 0 }}

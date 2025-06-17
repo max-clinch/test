@@ -10,13 +10,14 @@
  * - Provides task editing capability with validation
  * - Implements localStorage for persistent storage and cross-component data sharing
  * - Includes loading, error, and empty states with appropriate UI feedback
+ * - NEW: Filter tasks by completion status and search by title
  * 
  * @author Senior Full-Stack Engineer
- * @version 1.1.0
+ * @version 1.2.0
  */
 
-import React, { useState, useEffect } from 'react';
-import { FaCheck, FaEdit, FaSpinner, FaExclamationTriangle, FaCalendarAlt, FaFlag } from 'react-icons/fa';
+import React, { useState, useEffect, useCallback } from 'react';
+import { FaCheck, FaEdit, FaSpinner, FaExclamationTriangle, FaCalendarAlt, FaFlag, FaSearch, FaFilter, FaTimes } from 'react-icons/fa';
 
 const TaskList = () => {
   // State management with proper initialization
@@ -26,6 +27,18 @@ const TaskList = () => {
   const [error, setError] = useState(null);
   const [editingTask, setEditingTask] = useState(null);
   const [editForm, setEditForm] = useState({ title: '', description: '' });
+  
+  // NEW: Filter state
+  const [filters, setFilters] = useState({
+    status: 'all',
+    search: ''
+  });
+  const [showFilters, setShowFilters] = useState(false);
+  const [counts, setCounts] = useState({
+    all: 0,
+    complete: 0,
+    incomplete: 0
+  });
 
   /**
    * Load tasks from localStorage or initialize with mock data
@@ -45,6 +58,10 @@ const TaskList = () => {
           const parsedTasks = JSON.parse(storedTasks);
           setTasks(parsedTasks);
           setFilteredTasks(parsedTasks);
+          
+          // NEW: Apply initial filtering and update counts
+          applyFilters(parsedTasks, filters);
+          updateCounts(parsedTasks);
         } else {
           // Initialize with mock data if no stored tasks exist
           const mockTasks = [
@@ -91,6 +108,10 @@ const TaskList = () => {
           
           setTasks(mockTasks);
           setFilteredTasks(mockTasks);
+          
+          // NEW: Apply initial filtering and update counts
+          applyFilters(mockTasks, filters);
+          updateCounts(mockTasks);
         }
         
         setError(null);
@@ -111,6 +132,10 @@ const TaskList = () => {
           const updatedTasks = JSON.parse(e.newValue || '[]');
           setTasks(updatedTasks);
           setFilteredTasks(updatedTasks);
+          
+          // NEW: Apply filters to updated tasks and update counts
+          applyFilters(updatedTasks, filters);
+          updateCounts(updatedTasks);
         } catch (err) {
           console.error('Error parsing tasks from storage:', err);
         }
@@ -125,6 +150,74 @@ const TaskList = () => {
       window.removeEventListener('storage', handleStorageChange);
     };
   }, []);
+
+  /**
+   * NEW: Update task counts by status
+   * 
+   * @param {Array} taskList - List of tasks to count
+   */
+  const updateCounts = (taskList) => {
+    const completeTasks = taskList.filter(task => task.status === 'complete').length;
+    const incompleteTasks = taskList.filter(task => task.status === 'incomplete').length;
+    
+    setCounts({
+      all: taskList.length,
+      complete: completeTasks,
+      incomplete: incompleteTasks
+    });
+  };
+
+  /**
+   * NEW: Apply filters to tasks based on current filter settings
+   * Memoized with useCallback to prevent unnecessary re-renders
+   * 
+   * @param {Array} taskList - List of tasks to filter
+   * @param {Object} filterSettings - Current filter settings
+   */
+  const applyFilters = useCallback((taskList, filterSettings) => {
+    let result = [...taskList];
+    
+    // Apply status filter
+    if (filterSettings.status !== 'all') {
+      result = result.filter(task => task.status === filterSettings.status);
+    }
+    
+    // Apply search filter
+    if (filterSettings.search.trim()) {
+      const searchTerm = filterSettings.search.toLowerCase().trim();
+      result = result.filter(task => 
+        task.title.toLowerCase().includes(searchTerm) || 
+        task.description.toLowerCase().includes(searchTerm)
+      );
+    }
+    
+    setFilteredTasks(result);
+  }, []);
+
+  /**
+   * NEW: Handle filter changes
+   * 
+   * @param {string} filterType - Type of filter to change
+   * @param {string} value - New filter value
+   */
+  const handleFilterChange = (filterType, value) => {
+    const newFilters = {
+      ...filters,
+      [filterType]: value
+    };
+    
+    setFilters(newFilters);
+    applyFilters(tasks, newFilters);
+  };
+
+  /**
+   * NEW: Reset all filters
+   */
+  const resetFilters = () => {
+    const resetFilters = { status: 'all', search: '' };
+    setFilters(resetFilters);
+    applyFilters(tasks, resetFilters);
+  };
 
   /**
    * Toggle task completion status
@@ -145,7 +238,10 @@ const TaskList = () => {
     
     // Update local state
     setTasks(updatedTasks);
-    setFilteredTasks(updatedTasks);
+    
+    // NEW: Apply filters to updated tasks and update counts
+    applyFilters(updatedTasks, filters);
+    updateCounts(updatedTasks);
     
     // Persist to localStorage for cross-component sharing
     localStorage.setItem('tasks', JSON.stringify(updatedTasks));
@@ -308,128 +404,221 @@ const TaskList = () => {
 
   return (
     <div className="bg-white p-4 rounded-lg shadow max-h-96 overflow-y-auto">
-      <h3 className="text-lg font-semibold mb-4 text-gray-800 border-b pb-2">Your Tasks</h3>
-      
-      <ul className="space-y-3" aria-label="Task list">
-        {filteredTasks.map((task) => (
-          <li key={task._id} className="border-b pb-3">
-            {editingTask === task._id ? (
-              // Edit form
-              <div className="space-y-2">
-                <label htmlFor={`title-${task._id}`} className="sr-only">Task title</label>
-                <input
-                  id={`title-${task._id}`}
-                  type="text"
-                  name="title"
-                  value={editForm.title}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  placeholder="Task title"
-                />
-                
-                <label htmlFor={`description-${task._id}`} className="sr-only">Task description</label>
-                <textarea
-                  id={`description-${task._id}`}
-                  name="description"
-                  value={editForm.description}
-                  onChange={handleInputChange}
-                  className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
-                  placeholder="Task description"
-                  rows="2"
-                ></textarea>
-                
-                <div className="flex justify-end space-x-2">
-                  <button
-                    onClick={() => cancelEditing()}
-                    className="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
-                    aria-label="Cancel editing"
-                  >
-                    Cancel
-                  </button>
-                  <button
-                    onClick={() => saveTask(task._id)}
-                    className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
-                    aria-label="Save task"
-                  >
-                    Save
-                  </button>
-                </div>
+      <div className="flex justify-between items-center mb-4 border-b pb-2">
+        <h3 className="text-lg font-semibold text-gray-800">Your Tasks</h3>
+        
+        {/* NEW: Filter toggle button */}
+        <button
+          onClick={() => setShowFilters(!showFilters)}
+          className="flex items-center text-sm text-blue-600 hover:text-blue-800 transition-colors"
+          aria-label={showFilters ? 'Hide filters' : 'Show filters'}
+        >
+          <FaFilter className="mr-1" aria-hidden="true" />
+          {showFilters ? 'Hide Filters' : 'Show Filters'}
+        </button>
+      </div>
+
+      {/* NEW: Filter section */}
+      {showFilters && (
+        <div className="mb-4 p-3 bg-gray-50 rounded-lg space-y-3">
+          {/* Search input */}
+          <div>
+            <label htmlFor="task-search" className="block text-sm font-medium text-gray-700 mb-1">
+              Search Tasks
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <FaSearch className="text-gray-400" aria-hidden="true" />
               </div>
-            ) : (
-              // Task display
-              <div>
-                <div className="flex justify-between items-start">
-                  <h4 className={`font-medium ${task.status === 'complete' ? 'line-through text-gray-500' : 'text-gray-800'}`}>
-                    {task.title}
-                  </h4>
-                  <div className="flex space-x-2">
+              <input
+                id="task-search"
+                type="text"
+                className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                placeholder="Search by title or description"
+                value={filters.search}
+                onChange={(e) => handleFilterChange('search', e.target.value)}
+                aria-label="Search tasks"
+              />
+            </div>
+          </div>
+          
+          {/* Status filter */}
+          <div>
+            <label htmlFor="task-status-filter" className="block text-sm font-medium text-gray-700 mb-1">
+              Filter by Status
+            </label>
+            <div className="relative">
+              <div className="absolute inset-y-0 left-0 pl-3 flex items-center pointer-events-none">
+                <FaFilter className="text-gray-400" aria-hidden="true" />
+              </div>
+              <select
+                id="task-status-filter"
+                className="pl-10 block w-full rounded-md border-gray-300 shadow-sm focus:border-blue-500 focus:ring-blue-500 text-sm"
+                value={filters.status}
+                onChange={(e) => handleFilterChange('status', e.target.value)}
+                aria-label="Filter tasks by status"
+              >
+                <option value="all">All Tasks ({counts.all})</option>
+                <option value="complete">Complete ({counts.complete})</option>
+                <option value="incomplete">Incomplete ({counts.incomplete})</option>
+              </select>
+            </div>
+          </div>
+
+          {/* Filter actions */}
+          <div className="flex justify-between items-center">
+            <span className="text-xs text-gray-500">
+              Showing {filteredTasks.length} of {tasks.length} tasks
+            </span>
+            {(filters.status !== 'all' || filters.search.trim()) && (
+              <button
+                onClick={resetFilters}
+                className="flex items-center text-xs text-blue-600 hover:text-blue-800 transition-colors"
+                aria-label="Reset filters"
+              >
+                <FaTimes className="mr-1" aria-hidden="true" />
+                Reset Filters
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+      
+      {/* Task list */}
+      {filteredTasks.length === 0 ? (
+        <div className="text-center py-8 text-gray-500">
+          <p>No tasks match your filters</p>
+          {(filters.status !== 'all' || filters.search.trim()) && (
+            <button
+              className="mt-2 px-4 py-2 text-sm text-blue-600 hover:text-blue-800"
+              onClick={resetFilters}
+            >
+              Reset Filters
+            </button>
+          )}
+        </div>
+      ) : (
+        <ul className="space-y-3" aria-label="Task list">
+          {filteredTasks.map((task) => (
+            <li key={task._id} className="border-b pb-3">
+              {editingTask === task._id ? (
+                // Edit form
+                <div className="space-y-2">
+                  <label htmlFor={`title-${task._id}`} className="sr-only">Task title</label>
+                  <input
+                    id={`title-${task._id}`}
+                    type="text"
+                    name="title"
+                    value={editForm.title}
+                    onChange={handleInputChange}
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    placeholder="Task title"
+                  />
+                  
+                  <label htmlFor={`description-${task._id}`} className="sr-only">Task description</label>
+                  <textarea
+                    id={`description-${task._id}`}
+                    name="description"
+                    value={editForm.description}
+                    onChange={handleInputChange}
+                    className="w-full p-2 border rounded focus:ring-2 focus:ring-blue-500 focus:outline-none"
+                    placeholder="Task description"
+                    rows="2"
+                  ></textarea>
+                  
+                  <div className="flex justify-end space-x-2">
                     <button
-                      onClick={() => handleStatusChange(task._id)}
-                      className={`p-1 rounded ${
-                        task.status === 'complete' 
-                          ? 'bg-green-100 text-green-600' 
-                          : 'bg-gray-100 text-gray-600'
-                      } hover:opacity-80 transition-opacity`}
-                      title={task.status === 'complete' ? 'Mark as incomplete' : 'Mark as complete'}
-                      aria-label={task.status === 'complete' ? 'Mark as incomplete' : 'Mark as complete'}
+                      onClick={() => cancelEditing()}
+                      className="px-3 py-1 bg-gray-200 text-gray-700 rounded hover:bg-gray-300 transition-colors"
+                      aria-label="Cancel editing"
                     >
-                      <FaCheck aria-hidden="true" />
+                      Cancel
                     </button>
                     <button
-                      onClick={() => startEditing(task)}
-                      className="p-1 rounded bg-blue-100 text-blue-600 hover:opacity-80 transition-opacity"
-                      title="Edit task"
-                      aria-label="Edit task"
+                      onClick={() => saveTask(task._id)}
+                      className="px-3 py-1 bg-blue-500 text-white rounded hover:bg-blue-600 transition-colors"
+                      aria-label="Save task"
                     >
-                      <FaEdit aria-hidden="true" />
+                      Save
                     </button>
                   </div>
                 </div>
-                
-                <p className={`text-sm mt-1 ${task.status === 'complete' ? 'text-gray-400' : 'text-gray-600'}`}>
-                  {task.description}
-                </p>
-                
-                <div className="mt-2 flex flex-wrap gap-2 justify-between items-center">
-                  <div className="flex flex-wrap gap-2">
-                    <span 
-                      className={`text-xs px-2 py-1 rounded flex items-center ${
-                        task.status === 'complete' 
-                          ? 'bg-green-100 text-green-800' 
-                          : 'bg-yellow-100 text-yellow-800'
-                      }`}
-                      aria-label={`Status: ${task.status}`}
-                    >
-                      <FaCheck className="mr-1" aria-hidden="true" />
-                      {task.status === 'complete' ? 'Complete' : 'Incomplete'}
-                    </span>
-                    
-                    {task.priority && (
-                      <span 
-                        className={`text-xs px-2 py-1 rounded flex items-center ${getPriorityClasses(task.priority)}`}
-                        aria-label={`Priority: ${task.priority}`}
+              ) : (
+                // Task display
+                <div>
+                  <div className="flex justify-between items-start">
+                    <h4 className={`font-medium ${task.status === 'complete' ? 'line-through text-gray-500' : 'text-gray-800'}`}>
+                      {task.title}
+                    </h4>
+                    <div className="flex space-x-2">
+                      <button
+                        onClick={() => handleStatusChange(task._id)}
+                        className={`p-1 rounded ${
+                          task.status === 'complete' 
+                            ? 'bg-green-100 text-green-600' 
+                            : 'bg-gray-100 text-gray-600'
+                        } hover:opacity-80 transition-opacity`}
+                        title={task.status === 'complete' ? 'Mark as incomplete' : 'Mark as complete'}
+                        aria-label={task.status === 'complete' ? 'Mark as incomplete' : 'Mark as complete'}
                       >
-                        <FaFlag className="mr-1" aria-hidden="true" />
-                        {task.priority}
+                        <FaCheck aria-hidden="true" />
+                      </button>
+                      <button
+                        onClick={() => startEditing(task)}
+                        className="p-1 rounded bg-blue-100 text-blue-600 hover:opacity-80 transition-opacity"
+                        title="Edit task"
+                        aria-label="Edit task"
+                      >
+                        <FaEdit aria-hidden="true" />
+                      </button>
+                    </div>
+                  </div>
+                  
+                  <p className={`text-sm mt-1 ${task.status === 'complete' ? 'text-gray-400' : 'text-gray-600'}`}>
+                    {task.description}
+                  </p>
+                  
+                  <div className="mt-2 flex flex-wrap gap-2 justify-between items-center">
+                    <div className="flex flex-wrap gap-2">
+                      <span 
+                        className={`text-xs px-2 py-1 rounded flex items-center ${
+                          task.status === 'complete' 
+                            ? 'bg-green-100 text-green-800' 
+                            : 'bg-yellow-100 text-yellow-800'
+                        }`}
+                        aria-label={`Status: ${task.status}`}
+                      >
+                        <FaCheck className="mr-1" aria-hidden="true" />
+                        {task.status === 'complete' ? 'Complete' : 'Incomplete'}
+                      </span>
+                      
+                      {task.priority && (
+                        <span 
+                          className={`text-xs px-2 py-1 rounded flex items-center ${getPriorityClasses(task.priority)}`}
+                          aria-label={`Priority: ${task.priority}`}
+                        >
+                          <FaFlag className="mr-1" aria-hidden="true" />
+                          {task.priority}
+                        </span>
+                      )}
+                    </div>
+                    
+                    {task.dueDate && (
+                      <span 
+                        className="text-xs text-gray-500 flex items-center"
+                        title={`Due date: ${new Date(task.dueDate).toLocaleString()}`}
+                      >
+                        <FaCalendarAlt className="mr-1" aria-hidden="true" />
+                        {formatDate(task.dueDate)}
                       </span>
                     )}
                   </div>
-                  
-                  {task.dueDate && (
-                    <span 
-                      className="text-xs text-gray-500 flex items-center"
-                      title={`Due date: ${new Date(task.dueDate).toLocaleString()}`}
-                    >
-                      <FaCalendarAlt className="mr-1" aria-hidden="true" />
-                      {formatDate(task.dueDate)}
-                    </span>
-                  )}
                 </div>
-              </div>
-            )}
-          </li>
-        ))}
-      </ul>
+              )}
+            </li>
+          ))}
+        </ul>
+      )}
     </div>
   );
 };

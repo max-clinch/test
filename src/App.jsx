@@ -86,6 +86,56 @@ const ProtectedRoute = ({ children, requiredRole }) => {
 };
 
 /**
+ * Dashboard Only Route Component
+ * 
+ * Component that shows only the dashboard when user is not authenticated
+ * and redirects to appropriate dashboard when authenticated
+ */
+const DashboardOnlyRoute = () => {
+  const { user, hasRole } = useAuth();
+  const location = useLocation();
+  
+  // Check if user is authenticated
+  const isAuthenticated = !!user || !!localStorage.getItem("token");
+  
+  if (isAuthenticated) {
+    // If authenticated, redirect to appropriate dashboard
+    const userRole = localStorage.getItem("userRole");
+    const redirectPath = userRole === "admin" ? "/admin/dashboard" : "/user/dashboard";
+    
+    return <Navigate to={redirectPath} replace />;
+  }
+  
+  // If not authenticated, show a limited dashboard view
+  return (
+    <div className="min-h-screen bg-gray-50">
+      <div className="max-w-4xl mx-auto px-4 py-8">
+        <div className="bg-white rounded-lg shadow-md p-6">
+          <h1 className="text-2xl font-bold text-gray-800 mb-4">Welcome to TaskFlow</h1>
+          <p className="text-gray-600 mb-6">
+            Please log in to access the full features of TaskFlow.
+          </p>
+          <div className="flex gap-4">
+            <button
+              onClick={() => window.location.href = "/login"}
+              className="bg-blue-600 text-white px-6 py-2 rounded-md hover:bg-blue-700 transition"
+            >
+              Login
+            </button>
+            <button
+              onClick={() => window.location.href = "/signup"}
+              className="bg-gray-600 text-white px-6 py-2 rounded-md hover:bg-gray-700 transition"
+            >
+              Sign Up
+            </button>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+};
+
+/**
  * Main App Component
  * 
  * Defines the application's routing structure and wraps the app with necessary providers.
@@ -100,8 +150,11 @@ function App() {
             
             <main className="flex-grow">
               <Routes>
+                {/* Default route - shows dashboard only when logged out */}
+                <Route path="/" element={<DashboardOnlyRoute />} />
+                
                 {/* Public Routes */}
-                <Route path="/" element={<Landing />} />
+                <Route path="/landing" element={<Landing />} />
                 <Route path="/login" element={<Login />} />
                 <Route path="/signup" element={<Signup />} />
                 <Route path="/forgot-password" element={<ForgotPassword />} />
@@ -215,7 +268,7 @@ function App() {
                   } 
                 />
                 
-                {/* Fallback Route - Redirect to landing page */}
+                {/* Fallback Route - Redirect to dashboard only view */}
                 <Route path="*" element={<Navigate to="/" replace />} />
               </Routes>
             </main>
